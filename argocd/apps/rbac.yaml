@@ -1,0 +1,20 @@
+# argocd/apps/rbac.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rbac-config
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/NguyenKhanhDuy2703/w10-cicd-security.git
+    targetRevision: HEAD
+    path: rbac
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
