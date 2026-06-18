@@ -6,6 +6,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "2"
 spec:
+  enforcementAction : deny
   match:
     kinds:
       - apiGroups: [""]
@@ -14,3 +15,4 @@ spec:
     cpu: "2"
     memory: "2Gi"
     required: ["cpu", "memory"] 
+    
