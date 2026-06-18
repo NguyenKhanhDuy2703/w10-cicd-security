@@ -1,0 +1,59 @@
+# Rollout: Progressive delivery với canary strategy
+# Sync wave 0: Deploy trước để tạo pods
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: api
+  namespace: demo
+  labels:
+    app: api
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+      - name: api
+        image: ghcr.io/Vuong-Bach/w10-api:0.0.1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        env:
+        - name: VERSION
+          value: "v0.0.1"
+        - name: ERROR_RATE
+          value: "0"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 3
+        resources:
+          limits:
+            cpu: 200m
+            memory: 128Mi
+  strategy:
+    canary:
+      analysis:
+        templates:
+        - templateName: success-rate
+        startingStep: 1
+      steps:
+      - setWeight: 10
+      - pause: {duration: 2m}
+      - setWeight: 50
+      - pause: {duration: 2m}
+      - setWeight: 100

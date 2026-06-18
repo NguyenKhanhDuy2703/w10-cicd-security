@@ -1,0 +1,31 @@
+# SLO Alert Rule: Fire khi success rate < 95%
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: slo-alerts
+  namespace: monitoring
+  labels:
+    prometheus: kube-prometheus-stack
+    release: kube-prometheus-stack
+spec:
+  groups:
+  - name: slo
+    interval: 30s
+    rules:
+    
+    # SLI: Success rate
+    - record: api:success_rate:5m
+      expr: |
+        sum(rate(flask_http_request_duration_seconds_count{status!~"5.."}[5m]))
+        /
+        sum(rate(flask_http_request_duration_seconds_count[5m]))
+
+    # Alert: Success rate < 95% (SLO violation)
+    - alert: SLOViolation
+      expr: api:success_rate:5m < 0.95
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "API SLO Violation"
+        description: "Success rate {{ $value | humanizePercentage }} (SLO: 95%)"

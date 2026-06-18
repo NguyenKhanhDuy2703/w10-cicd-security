@@ -1,0 +1,12 @@
+# Secrets - DO NOT COMMIT
+k8s-monitoring/email-secret.yaml
+k8s-monitoring/alertmanager-config.yaml
+**/email-secret.yaml
+*.secret.yaml
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store

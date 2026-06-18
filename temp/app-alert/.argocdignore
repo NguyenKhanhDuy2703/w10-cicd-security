@@ -1,0 +1,4 @@
+# ArgoCD ignore: Không sync email-secret.yaml
+# Secret này phải apply thủ công
+email-secret.yaml
+README.md

@@ -1,0 +1,23 @@
+# ArgoCD App: Deploy AnalysisTemplate cho canary analysis
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: analysis
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Vuong-Bach/temp.git
+    path: app-analysis
+    targetRevision: main
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: demo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - ServerSideApply=true

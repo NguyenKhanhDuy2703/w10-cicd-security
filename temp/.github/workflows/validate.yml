@@ -1,0 +1,30 @@
+# CI validate manifest (W9 base). Path khop voi cau truc repo W10.
+name: validate
+on:
+  pull_request:
+    paths:
+    - 'app-api/**'
+    - 'app-analysis/**'
+    - 'app-alert/**'
+    - 'app-common/**'
+    - 'argocd/**'
+    # W10 se them: rbac/**, gatekeeper/**, eso/**, signing/**
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install kubeconform
+      run: |
+        curl -sSLo kc.tgz https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+        tar -xzf kc.tgz
+        sudo mv kubeconform /usr/local/bin/
+
+    # -ignore-missing-schemas: bo qua CRD chua biet schema (Rollout, Application,
+    # ServiceMonitor, PrometheusRule, AnalysisTemplate, Constraint, ExternalSecret...)
+    - name: Validate manifests
+      run: |
+        kubeconform -strict -summary -ignore-missing-schemas \
+          app-api/ app-analysis/ app-alert/ app-common/ argocd/
