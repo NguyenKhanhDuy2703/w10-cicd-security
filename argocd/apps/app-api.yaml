@@ -9,7 +9,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/Vuong-Bach/temp.git
+    repoURL: https://github.com/NguyenKhanhDuy2703/w10-cicd-security.git
     path: app-api
     targetRevision: main
   destination:

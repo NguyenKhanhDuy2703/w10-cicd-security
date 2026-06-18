@@ -6,7 +6,7 @@ on:
     branches:
       - main
     paths:
-      - 'api/**'
+      - 'src/api/**'
       - '.github/workflows/build-push.yml'
   workflow_dispatch:
 
@@ -57,7 +57,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: ./api
+          context: ./src/api
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
