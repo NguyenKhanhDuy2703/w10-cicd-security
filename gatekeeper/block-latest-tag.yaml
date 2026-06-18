@@ -1,0 +1,14 @@
+# gatekeeper/constraints/block-latest-tag.yaml
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredDisallowedTags
+metadata:
+  name: block-latest-tag
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+  parameters:
+    tags: ["latest"]

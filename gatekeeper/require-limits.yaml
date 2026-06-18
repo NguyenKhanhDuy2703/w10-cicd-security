@@ -1,0 +1,16 @@
+# gatekeeper/constraints/require-limits.yaml
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sContainerLimits
+metadata:
+  name: require-resource-limits
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+  parameters:
+    cpu: "2"
+    memory: "2Gi"
+    required: ["cpu", "memory"] 

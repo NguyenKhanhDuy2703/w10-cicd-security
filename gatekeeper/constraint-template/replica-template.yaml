@@ -1,0 +1,40 @@
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: k8smaxreplicas
+  annotations:
+    argocd.argoproj.io/sync-wave: "1" # Tạo template trước
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sMaxReplicas
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            max: # Định nghĩa tham số 'max' kiểu số nguyên
+              type: integer
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8smaxreplicas
+
+        # Khối violation: Nếu nội dung bên trong là TRUE, manifest sẽ bị chặn
+        violation[{"msg": msg}] {
+          # 1. Kiểm tra xem đây có phải là Deployment không
+          input.review.kind.kind == "Deployment"
+          
+          # 2. Lấy số lượng replicas từ manifest của user
+          # Dùng mặc định là 1 nếu user không khai báo 'replicas' trong YAML
+          provided_replicas := object.get(input.review.object.spec, "replicas", 1)
+          
+          # 3. Lấy mức trần (max) từ Constraint do Admin cấu hình
+          max_allowed := input.parameters.max
+          
+          # 4. ĐIỀU KIỆN CHẶN: Nếu lớn hơn mức cho phép
+          provided_replicas > max_allowed
+          
+          # 5. Xuất câu thông báo lỗi trả về cho user
+          msg := sprintf("Deployment '%v' yêu cầu %v replicas. Vượt quá mức tối đa cho phép là %v!", [input.review.object.metadata.name, provided_replicas, max_allowed])
+        }

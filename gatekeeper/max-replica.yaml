@@ -1,0 +1,13 @@
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sMaxReplicas # Gọi đúng tên kind đã định nghĩa ở Template
+metadata:
+  name: enforce-max-replicas
+  annotations:
+    argocd.argoproj.io/sync-wave: "2" # Áp dụng luật sau khi có template
+spec:
+  match:
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment"]
+  parameters:
+    max: 5 # Giới hạn tối đa là 5 replicas

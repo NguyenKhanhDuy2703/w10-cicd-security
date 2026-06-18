@@ -1,0 +1,15 @@
+# gatekeeper/constraints/ban-root-user.yaml
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sAllowedUsers
+metadata:
+  name: ban-root-user
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+  parameters:
+    runAsUser:
+      rule: "MustRunAsNonRoot" 
