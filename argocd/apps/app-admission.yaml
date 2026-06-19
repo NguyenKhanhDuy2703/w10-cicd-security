@@ -33,17 +33,22 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s      
+        factor: 2          
+        maxDuration: 120s
 ---
-# ArgoCD App: Apply ClusterImagePolicy từ Git
-# Wave -3: sau khi Policy Controller đã cài (wave -4)
-#          trước khi app-api chạy (wave 2)
+
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: admission-policy-config
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "-3"
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   project: default
   source:
