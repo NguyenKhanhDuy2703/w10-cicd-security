@@ -2,18 +2,23 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: root
+  name: eso-config
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   project: default
   source:
     repoURL: https://github.com/NguyenKhanhDuy2703/w10-cicd-security.git
-    path: argocd/apps
+    path: app-eso        
     targetRevision: main
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
+    namespace: external-secrets
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
