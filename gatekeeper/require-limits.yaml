@@ -14,4 +14,3 @@ spec:
   parameters:
     cpu: "2"
     memory: "2Gi"
-    required: ["cpu", "memory"] 
