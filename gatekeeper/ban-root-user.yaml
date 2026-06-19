@@ -1,6 +1,6 @@
 # gatekeeper/constraints/ban-root-user.yaml
 apiVersion: constraints.gatekeeper.sh/v1beta1
-kind: K8sAllowedUsers
+kind: K8sPSPAllowedUsers
 metadata:
   name: ban-root-user
   annotations:
@@ -13,4 +13,4 @@ spec:
         kinds: ["Pod"]
   parameters:
     runAsUser:
-      rule: "MustRunAsNonRoot" 
+      rule: "MustRunAsNonRoot"

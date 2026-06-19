@@ -1,5 +1,5 @@
 apiVersion: constraints.gatekeeper.sh/v1beta1
-kind: K8sHostNetwork
+kind: K8sPSPHostNetworkingPorts
 metadata:
   name: ban-host-network
   annotations:
@@ -10,3 +10,5 @@ spec:
     kinds:
       - apiGroups: [""]
         kinds: ["Pod"]
+  parameters:
+    hostNetwork: false   # không cho phép dùng host network namespace

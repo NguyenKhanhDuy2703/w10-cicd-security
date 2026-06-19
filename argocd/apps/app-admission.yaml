@@ -1,8 +1,4 @@
----
-# ArgoCD App: Cài Sigstore Policy Controller qua Helm
-# Wave -4: phải chạy trước app-api (wave 2) vì Policy Controller
-#          intercept mọi Pod creation request
-#          Nếu chưa cài → không có gì verify signature
+
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

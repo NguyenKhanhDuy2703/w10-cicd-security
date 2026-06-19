@@ -1,6 +1,6 @@
 # gatekeeper/constraints/block-latest-tag.yaml
 apiVersion: constraints.gatekeeper.sh/v1beta1
-kind: K8sRequiredDisallowedTags
+kind: K8sDisallowedTags
 metadata:
   name: block-latest-tag
   annotations:
