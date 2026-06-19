@@ -5,3 +5,7 @@ metadata:
   name: demo
   annotations:
     argocd.argoproj.io/sync-wave: "0"
+  labels:
+    # Policy Controller chỉ enforce namespace có label này
+    # Namespace không có label → webhook bỏ qua → không verify signature
+    policy.sigstore.dev/include: "true"

@@ -1,0 +1,62 @@
+---
+# ArgoCD App: Cài Sigstore Policy Controller qua Helm
+# Wave -4: phải chạy trước app-api (wave 2) vì Policy Controller
+#          intercept mọi Pod creation request
+#          Nếu chưa cài → không có gì verify signature
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: admission-policy-controller
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-4"
+spec:
+  project: default
+  source:
+    repoURL: https://sigstore.github.io/helm-charts
+    chart: policy-controller
+    targetRevision: 0.9.0
+    helm:
+      values: |
+        namespaceSelector:
+          matchExpressions:
+            - key: policy.sigstore.dev/include
+              operator: In
+              values: ["true"]
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cosign-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+# ArgoCD App: Apply ClusterImagePolicy từ Git
+# Wave -3: sau khi Policy Controller đã cài (wave -4)
+#          trước khi app-api chạy (wave 2)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: admission-policy-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/NguyenKhanhDuy2703/w10-cicd-security.git
+    path: app-admission
+    targetRevision: main
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cosign-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

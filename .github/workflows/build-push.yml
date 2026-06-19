@@ -1,4 +1,5 @@
 # Build and push Docker image to GitHub Container Registry
+# Pipeline: Build → Trivy Scan → Cosign Sign → Push → Update rollout
 name: Build and Push Image
 
 on:
@@ -20,6 +21,7 @@ jobs:
     permissions:
       contents: write
       packages: write
+      id-token: write  
 
     steps:
       - name: Checkout repository
@@ -44,23 +46,69 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # STEP 1: Build image nhưng CHƯA push
+      # push: false → image chỉ tồn tại trong Docker daemon của runner
+      # load: true  → load image vào local Docker để Trivy scan được
+      - name: Build Docker image (no push yet)
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./src/api
+          push: false
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.version }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      # STEP 2: Trivy scan image vừa build
+      # Scan TRƯỚC KHI push → image xấu không bao giờ lên registry
+      # exit-code: 1 → CI fail nếu tìm thấy HIGH/CRITICAL CVE
+      - name: Trivy scan image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.version }}
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: 1         
+          ignore-unfixed: true 
+
+      # STEP 3: Push image lên registry (chỉ sau khi scan pass)
+      # Dùng digest output để Cosign ký đúng image hash
+      - name: Push Docker image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./src/api
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.version }}
+
+      # STEP 4: Cài Cosign tool
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.5.0
+
+      # STEP 5: Ký image bằng Cosign keyless
+      # Keyless = không cần private key file, dùng OIDC token từ GitHub
+      # Sigstore Fulcio cấp short-lived cert dựa trên GitHub identity
+      # Signature lưu vào Sigstore Rekor (public transparency log)
+      # và attach vào image trên ghcr.io
+      #
+      # Ký bằng DIGEST (không phải tag) vì:
+      #   - Tag có thể bị overwrite (latest)
+      #   - Digest là immutable hash của image
+      #   - Admission controller verify bằng digest
+      - name: Sign image with Cosign (keyless)
+        run: |
+          cosign sign --yes \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}
+        env:
+          COSIGN_EXPERIMENTAL: "1"   # enable keyless mode
+
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=latest
-            type=raw,value=${{ steps.semver.outputs.version }}
-            type=sha,prefix=v${{ steps.semver.outputs.version }}-
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./src/api
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
 
       - name: Update rollout.yaml with new version
         run: |

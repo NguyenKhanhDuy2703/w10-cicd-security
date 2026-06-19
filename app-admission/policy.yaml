@@ -1,0 +1,14 @@
+apiVersion: policy.sigstore.dev/v1beta1
+kind: ClusterImagePolicy
+metadata:
+  name: verify-signed-images
+spec:
+  images:
+    - glob: "ghcr.io/nguyenkhanhduy2703/w10-api**"
+
+  authorities:
+    - keyless:
+        url: https://fulcio.sigstore.dev  
+        identities:
+          - issuer: https://token.actions.githubusercontent.com
+            subject: "https://github.com/NguyenKhanhDuy2703/w10-cicd-security/.github/workflows/build-push.yml@refs/heads/main"
