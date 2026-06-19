@@ -1,5 +1,5 @@
 # Build and push Docker image to GitHub Container Registry
-# Pipeline: Build → Trivy Scan → Cosign Sign → Push → Update rollout
+# Pipeline: Build → Trivy Scan → Push → Cosign Sign → Update rollout
 name: Build and Push Image
 
 on:
@@ -13,7 +13,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/w10-api
 
 jobs:
   build-and-push:
@@ -21,13 +20,20 @@ jobs:
     permissions:
       contents: write
       packages: write
-      id-token: write  
+      id-token: write   # Cosign keyless cần OIDC token từ GitHub
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # Lowercase image name — Docker registry không chấp nhận chữ hoa
+      # github.repository_owner = "NguyenKhanhDuy2703" → "nguyenkhanhduy2703"
+      - name: Set lowercase image name
+        id: image
+        run: |
+          echo "name=$(echo '${{ env.REGISTRY }}/${{ github.repository_owner }}/w10-api' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Calculate semantic version
         id: semver
@@ -47,8 +53,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # STEP 1: Build image nhưng CHƯA push
-      # push: false → image chỉ tồn tại trong Docker daemon của runner
-      # load: true  → load image vào local Docker để Trivy scan được
+      # load: true → load vào local Docker daemon để Trivy scan được
       - name: Build Docker image (no push yet)
         id: build
         uses: docker/build-push-action@v6
@@ -56,23 +61,20 @@ jobs:
           context: ./src/api
           push: false
           load: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.version }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.image.outputs.name }}:${{ steps.semver.outputs.version }}
 
-      # STEP 2: Trivy scan image vừa build
-      # Scan TRƯỚC KHI push → image xấu không bao giờ lên registry
-      # exit-code: 1 → CI fail nếu tìm thấy HIGH/CRITICAL CVE
+      # STEP 2: Trivy scan image TRƯỚC KHI push
+      # image xấu sẽ không bao giờ lên registry
       - name: Trivy scan image
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.version }}
+          image-ref: ${{ steps.image.outputs.name }}:${{ steps.semver.outputs.version }}
           format: table
           severity: HIGH,CRITICAL
-          exit-code: 1         
-          ignore-unfixed: true 
+          exit-code: 1          # fail CI nếu có CVE nghiêm trọng
+          ignore-unfixed: true  # bỏ qua CVE chưa có fix
 
       # STEP 3: Push image lên registry (chỉ sau khi scan pass)
-      # Dùng digest output để Cosign ký đúng image hash
       - name: Push Docker image
         id: push
         uses: docker/build-push-action@v6
@@ -80,39 +82,27 @@ jobs:
           context: ./src/api
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.version }}
+            ${{ steps.image.outputs.name }}:latest
+            ${{ steps.image.outputs.name }}:${{ steps.semver.outputs.version }}
 
-      # STEP 4: Cài Cosign tool
+      # STEP 4: Cài Cosign
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.5.0
 
-      # STEP 5: Ký image bằng Cosign keyless
-      # Keyless = không cần private key file, dùng OIDC token từ GitHub
-      # Sigstore Fulcio cấp short-lived cert dựa trên GitHub identity
-      # Signature lưu vào Sigstore Rekor (public transparency log)
-      # và attach vào image trên ghcr.io
-      #
-      # Ký bằng DIGEST (không phải tag) vì:
-      #   - Tag có thể bị overwrite (latest)
-      #   - Digest là immutable hash của image
-      #   - Admission controller verify bằng digest
+      # STEP 5: Ký image bằng digest (keyless)
+      # Ký bằng digest vì tag (latest) có thể bị overwrite
+      # digest là immutable hash → admission controller verify được chính xác
       - name: Sign image with Cosign (keyless)
         run: |
           cosign sign --yes \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.push.outputs.digest }}
+            ${{ steps.image.outputs.name }}@${{ steps.push.outputs.digest }}
         env:
-          COSIGN_EXPERIMENTAL: "1"   # enable keyless mode
+          COSIGN_EXPERIMENTAL: "1"
 
-      - name: Extract metadata (tags, labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-
+      # STEP 6: Update rollout.yaml dùng image name lowercase
       - name: Update rollout.yaml with new version
         run: |
-          sed -i "s|image: ghcr.io/.*/w10-api:.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.semver.outputs.version }}|g" app-api/rollout.yaml
+          sed -i "s|image: ghcr.io/.*/w10-api:.*|image: ${{ steps.image.outputs.name }}:${{ steps.semver.outputs.version }}|g" app-api/rollout.yaml
           sed -i "s|value: \"v.*\"|value: \"v${{ steps.semver.outputs.version }}\"|g" app-api/rollout.yaml
 
       - name: Commit and push version update
